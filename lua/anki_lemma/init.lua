@@ -42,14 +42,28 @@ local function extract_lemma_and_proof()
   local lemma = nil
   local body_lines = {}
   local found_title = false
+  local frontmatter_end = 0
   
-  for i, line in ipairs(lines) do
+  -- Skip YAML frontmatter
+  if lines[1] and lines[1]:match("^%-%-%-") then
+    for i = 2, #lines do
+      if lines[i]:match("^%-%-%-") then
+        frontmatter_end = i
+        break
+      end
+    end
+  end
+  
+  -- Process lines after frontmatter
+  for i = frontmatter_end + 1, #lines do
+    local line = lines[i]
+    
     -- Extract lemma from ### heading and remove the ### prefix
     if line:match("^###") then
       lemma = line:gsub("^###%s*", ""):match("^%s*(.-)%s*$")
       found_title = true
-    -- Stop at --- separator
-    elseif line:match("^%-%-%-") then
+    -- Stop at --- separator (but not the frontmatter one)
+    elseif line:match("^%-%-%-") and found_title then
       break
     -- Capture everything after the title until ---
     elseif found_title then

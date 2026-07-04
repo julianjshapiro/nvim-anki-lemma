@@ -12,6 +12,24 @@ function M.setup(opts)
   config = vim.tbl_extend('force', defaults, opts or {})
 end
 
+local function markdown_to_html(text)
+  -- Convert markdown to HTML
+  -- Bold: **text** -> <b>text</b>
+  text = text:gsub("%*%*(.-)%*%*", "<b>%1</b>")
+  
+  -- Italic: *text* -> <i>text</i>
+  text = text:gsub("%*(.-)%*", "<i>%1</i>")
+  
+  -- Wiki links: [[text|display]] -> display (just show the display text)
+  text = text:gsub("%[%[([^|%]]+)|([^%]]+)%]%]", "%2")
+  text = text:gsub("%[%[([^%]]+)%]%]", "%1")
+  
+  -- Line breaks
+  text = text:gsub("\n", "<br>")
+  
+  return text
+end
+
 local function extract_lemma_and_proof()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   
@@ -20,9 +38,9 @@ local function extract_lemma_and_proof()
   local in_proof = false
   
   for i, line in ipairs(lines) do
-    -- Extract lemma from ### heading
+    -- Extract lemma from ### heading and remove the ### prefix
     if line:match("^###") then
-      lemma = line:gsub("^###\\s*", "")
+      lemma = line:gsub("^###%s*", ""):match("^%s*(.-)%s*$")
     end
     
     -- Start capturing proof after **Proof.** 
@@ -44,6 +62,10 @@ local function extract_lemma_and_proof()
 end
 
 local function send_to_anki(front, back)
+  -- Convert markdown to HTML
+  front = markdown_to_html(front)
+  back = markdown_to_html(back)
+  
   local payload = {
     action = "addNote",
     version = 6,

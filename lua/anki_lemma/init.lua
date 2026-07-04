@@ -13,6 +13,11 @@ function M.setup(opts)
 end
 
 local function markdown_to_html(text)
+  -- Convert MathJax delimiters
+  -- $$ -> \[ and \]
+  text = text:gsub("%$%$", "\\[")
+  text = text:gsub("%$%$", "\\]")
+  
   -- Convert markdown to HTML
   -- Bold: **text** -> <b>text</b>
   text = text:gsub("%*%*(.-)%*%*", "<b>%1</b>")

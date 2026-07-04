@@ -2,8 +2,8 @@ local M = {}
 
 local defaults = {
   anki_port = 8765,
-  deck_name = "Math",
-  model_name = "Proof",
+  deck_name = "Default",
+  model_name = "Basic",
 }
 
 local config = {}
@@ -59,20 +59,41 @@ local function send_to_anki(front, back)
   }
   
   local json = vim.fn.json_encode(payload)
+  
+  -- Use a temp file to avoid shell escaping issues
+  local temp_file = os.tmpname()
+  local f = io.open(temp_file, "w")
+  f:write(json)
+  f:close()
+  
   local curl_cmd = string.format(
-    "curl -s -X POST http://localhost:%d --data '%s' -H 'Content-Type: application/json'",
+    "curl -s -X POST http://localhost:%d -d @%s -H 'Content-Type: application/json' 2>&1",
     config.anki_port,
-    json:gsub("'", "'\\''")
+    temp_file
   )
+  
+  vim.notify("Attempting to connect to AnkiConnect on port " .. config.anki_port, vim.log.levels.INFO)
   
   local handle = io.popen(curl_cmd)
   local result = handle:read("*a")
   handle:close()
   
-  local response = vim.fn.json_decode(result)
+  -- Clean up temp file
+  os.remove(temp_file)
+  
+  if not result or result == "" then
+    vim.notify("AnkiConnect returned empty response. Is Anki running on port " .. config.anki_port .. "?", vim.log.levels.ERROR)
+    return false
+  end
+  
+  local ok, response = pcall(vim.fn.json_decode, result)
+  if not ok then
+    vim.notify("Failed to parse AnkiConnect response: " .. result, vim.log.levels.ERROR)
+    return false
+  end
   
   if response.error then
-    vim.notify("Anki error: " .. response.error, vim.log.levels.ERROR)
+    vim.notify("Anki error: " .. tostring(response.error), vim.log.levels.ERROR)
     return false
   else
     vim.notify("Card created! ID: " .. tostring(response.result), vim.log.levels.INFO)
@@ -92,6 +113,7 @@ function M.create_card()
     return
   end
   
+  vim.notify("Lemma: " .. lemma, vim.log.levels.INFO)
   vim.notify("Creating card...", vim.log.levels.INFO)
   send_to_anki(lemma, proof)
 end

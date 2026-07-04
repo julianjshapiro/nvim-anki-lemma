@@ -16,25 +16,29 @@ local function extract_lemma_and_proof()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   
   local lemma = nil
+  local proof_lines = {}
+  local in_proof = false
+  
   for i, line in ipairs(lines) do
+    -- Extract lemma from ### heading
     if line:match("^###") then
       lemma = line:gsub("^###\\s*", "")
-      break
     end
-  end
-  
-  local proof_start = nil
-  for i, line in ipairs(lines) do
+    
+    -- Start capturing proof after **Proof.** 
     if line:match("^%*%*Proof%.%*%*") then
-      proof_start = i
+      in_proof = true
+      table.insert(proof_lines, line)
+    -- Stop at --- separator
+    elseif line:match("^%-%-%-") then
       break
+    -- Capture everything after **Proof.** until ---
+    elseif in_proof then
+      table.insert(proof_lines, line)
     end
   end
   
-  local proof = nil
-  if proof_start then
-    proof = table.concat(vim.list_slice(lines, proof_start, -1), "\n")
-  end
+  local proof = table.concat(proof_lines, "\n")
   
   return lemma, proof
 end
@@ -108,7 +112,7 @@ function M.create_card()
   
   local lemma, proof = extract_lemma_and_proof()
   
-  if not lemma or not proof then
+  if not lemma or proof == "" then
     vim.notify("Could not extract lemma and proof. Ensure file has '### ' header and '**Proof.**' section.", vim.log.levels.ERROR)
     return
   end

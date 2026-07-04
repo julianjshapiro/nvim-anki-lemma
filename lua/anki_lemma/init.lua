@@ -40,31 +40,26 @@ local function extract_lemma_and_proof()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   
   local lemma = nil
-  local proof_lines = {}
-  local in_proof = false
+  local body_lines = {}
+  local found_title = false
   
   for i, line in ipairs(lines) do
     -- Extract lemma from ### heading and remove the ### prefix
     if line:match("^###") then
       lemma = line:gsub("^###%s*", ""):match("^%s*(.-)%s*$")
-    end
-    
-    -- Start capturing proof after **Proof.** 
-    if line:match("^%*%*Proof%.%*%*") then
-      in_proof = true
-      table.insert(proof_lines, line)
+      found_title = true
     -- Stop at --- separator
     elseif line:match("^%-%-%-") then
       break
-    -- Capture everything after **Proof.** until ---
-    elseif in_proof then
-      table.insert(proof_lines, line)
+    -- Capture everything after the title until ---
+    elseif found_title then
+      table.insert(body_lines, line)
     end
   end
   
-  local proof = table.concat(proof_lines, "\n")
+  local body = table.concat(body_lines, "\n")
   
-  return lemma, proof
+  return lemma, body
 end
 
 local function send_to_anki(front, back)
@@ -138,16 +133,16 @@ function M.create_card()
     M.setup()
   end
   
-  local lemma, proof = extract_lemma_and_proof()
+  local lemma, body = extract_lemma_and_proof()
   
-  if not lemma or proof == "" then
-    vim.notify("Could not extract lemma and proof. Ensure file has '### ' header and '**Proof.**' section.", vim.log.levels.ERROR)
+  if not lemma or body == "" then
+    vim.notify("Could not extract lemma and body. Ensure file has '### ' header.", vim.log.levels.ERROR)
     return
   end
   
   vim.notify("Lemma: " .. lemma, vim.log.levels.INFO)
   vim.notify("Creating card...", vim.log.levels.INFO)
-  send_to_anki(lemma, proof)
+  send_to_anki(lemma, body)
 end
 
 function M.set_deck()

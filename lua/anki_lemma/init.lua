@@ -13,17 +13,16 @@ function M.setup(opts)
 end
 
 local function markdown_to_html(text)
-  -- Convert MathJax delimiters
-  -- $$ -> \[ and \]
-  text = text:gsub("%$%$", "\\[")
-  text = text:gsub("%$%$", "\\]")
+  -- Convert MathJax delimiters: $$ ... $$ -> \[ ... \]
+  -- Match from first $$ to second $$ and replace opening with \[, closing with \]
+  text = text:gsub("%$%$(.-)%$%$", "\\[%1\\]")
   
   -- Convert markdown to HTML
   -- Bold: **text** -> <b>text</b>
   text = text:gsub("%*%*(.-)%*%*", "<b>%1</b>")
   
-  -- Italic: *text* -> <i>text</i>
-  text = text:gsub("%*(.-)%*", "<i>%1</i>")
+  -- Italic: *text* -> <i>text</i> (but not inside links or already bold)
+  text = text:gsub("%*([^*]-)%*", "<i>%1</i>")
   
   -- Wiki links: [[text|display]] -> display (just show the display text)
   text = text:gsub("%[%[([^|%]]+)|([^%]]+)%]%]", "%2")
